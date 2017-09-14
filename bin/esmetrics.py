@@ -13,7 +13,7 @@ class EsMetrics(threading.Thread):
         'red': 2
     }
 
-    def __init__(self, falcon_url, es_url, es_endpoint, falcon_step = 10, daemon = False):
+    def __init__(self, falcon_url, es_url, es_endpoint, falcon_step = 60, daemon = False):
         self.falcon_url = falcon_url
         self.falcon_step = falcon_step
         self.es_url = es_url
@@ -60,15 +60,17 @@ class EsMetrics(threading.Thread):
             for keyword in keyword_metric:
                 falcon_metric = {
                     'counterType': 'COUNTER' if keyword in self.counter_keywords else 'GAUGE',
-                    'meric': keyword + ' (diff per second)' if keyword in self.counter_keywords else '',
+                    'metric': "es." + keyword,
                     'endpoint': self.es_endpoint,
                     'timestamp': timestamp,
                     'step': self.falcon_step,
-                    'tags': 'n=' + nodes_stats['cluster_name']
+                    'tags': 'n=' + nodes_stats['cluster_name'],
+                    'value': keyword_metric[keyword]
                 }
                 falcon_metrics.append(falcon_metric)
+            #print json.dumps(falcon_metrics)
             req = requests.post(self.falcon_url, data=json.dumps(falcon_metrics))
-            print "INFO: [%s]" % self.es_endpoint, req.text
+            print "INFO: [%s]" % self.es_endpoint, "[%s]" % self.falcon_url, req.text
         except Exception, e:
             print "ERROR: [%s]" % self.es_endpoint, e
             return
