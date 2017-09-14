@@ -1,0 +1,6 @@
+falcon:
+    push_url: http://127.0.0.1:6071/v1/push
+
+# Elasticsearch clusters
+es-clusters:
+    - {url: "http://127.0.0.1:9200", endpoint: "127.0.0.1"}
