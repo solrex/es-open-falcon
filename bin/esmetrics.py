@@ -4,6 +4,7 @@ import threading
 import elasticsearch
 import json
 import time
+from datetime import datetime
 import requests
 
 class EsMetrics(threading.Thread):
@@ -36,7 +37,7 @@ class EsMetrics(threading.Thread):
         try:
             self.es = elasticsearch.Elasticsearch([self.es_url])
         except Exception, e:
-            print "ERROR: [%s]" % self.es_endpoint, e
+            print datetime.now(), "ERROR: [%s]" % self.es_endpoint, e
             return
         falcon_metrics = []
         # Statistics
@@ -70,9 +71,9 @@ class EsMetrics(threading.Thread):
                 falcon_metrics.append(falcon_metric)
             #print json.dumps(falcon_metrics)
             req = requests.post(self.falcon_url, data=json.dumps(falcon_metrics))
-            print "INFO: [%s]" % self.es_endpoint, "[%s]" % self.falcon_url, req.text
+            print datetime.now(), "INFO: [%s]" % self.es_endpoint, "[%s]" % self.falcon_url, req.text
         except Exception, e:
-            print "ERROR: [%s]" % self.es_endpoint, e
+            print datetime.now(), "ERROR: [%s]" % self.es_endpoint, e
             return
 
 if __name__ == '__main__':
