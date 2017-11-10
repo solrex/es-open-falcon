@@ -1,4 +1,4 @@
-# es-open-falcon
+# es-open-falcon - 好用就给个 Star 呗！
 Elasticsearch Monitor Script for Open Falcon
 
 ```
