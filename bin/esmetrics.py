@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 import requests
 
+
 class EsMetrics(threading.Thread):
     status_map = {
         'green': 0,
@@ -14,11 +15,15 @@ class EsMetrics(threading.Thread):
         'red': 2
     }
 
-    def __init__(self, falcon_url, es_url, es_endpoint, falcon_step = 60, daemon = False):
-        self.falcon_url = falcon_url
-        self.falcon_step = falcon_step
-        self.es_url = es_url
-        self.es_endpoint = es_endpoint
+    def __init__(self, falcon_conf, es_conf):
+        self.falcon_conf = falcon_conf
+        self.es_conf = es_conf
+        # Assign default conf
+        if 'test_run' not in self.falcon_conf:
+            self.falcon_conf['test_run'] = False
+        if 'step' not in self.falcon_conf:
+            self.falcon_conf['step'] = 60
+
         self.index_metrics = {
             'search': ['query_total', 'query_time_in_millis', 'query_current', 'fetch_total', 'fetch_time_in_millis', 'fetch_current'],
             'indexing': ['index_total', 'index_current', 'index_time_in_millis', 'delete_total', 'delete_current', 'delete_time_in_millis'],
@@ -30,18 +35,14 @@ class EsMetrics(threading.Thread):
             'fetch_total', 'fetch_time_in_millis',
             'index_total', 'index_time_in_millis', 
             'delete_total', 'delete_time_in_millis']
-        super(EsMetrics, self).__init__(None, name=es_endpoint)
-        self.setDaemon(daemon)
+        super(EsMetrics, self).__init__(None, name=self.es_conf['endpoint'])
+        self.setDaemon(False)
 
     def run(self):
         try:
-            self.es = elasticsearch.Elasticsearch([self.es_url])
-        except Exception, e:
-            print datetime.now(), "ERROR: [%s]" % self.es_endpoint, e
-            return
-        falcon_metrics = []
-        # Statistics
-        try:
+            self.es = elasticsearch.Elasticsearch([self.es_conf['url']])
+            falcon_metrics = []
+            # Statistics
             timestamp = int(time.time())
             nodes_stats = self.es.nodes.stats()
             cluster_health = self.es.cluster.health()
@@ -62,20 +63,20 @@ class EsMetrics(threading.Thread):
                 falcon_metric = {
                     'counterType': 'COUNTER' if keyword in self.counter_keywords else 'GAUGE',
                     'metric': "es." + keyword,
-                    'endpoint': self.es_endpoint,
+                    'endpoint': self.es_conf['endpoint'],
                     'timestamp': timestamp,
-                    'step': self.falcon_step,
+                    'step': self.falcon_conf['step'],
                     'tags': 'n=' + nodes_stats['cluster_name'],
                     'value': keyword_metric[keyword]
                 }
                 falcon_metrics.append(falcon_metric)
-            #print json.dumps(falcon_metrics)
-            req = requests.post(self.falcon_url, data=json.dumps(falcon_metrics))
-            print datetime.now(), "INFO: [%s]" % self.es_endpoint, "[%s]" % self.falcon_url, req.text
-        except Exception, e:
-            print datetime.now(), "ERROR: [%s]" % self.es_endpoint, e
-            return
-
-if __name__ == '__main__':
-    EsMetrics('', 'http://127.0.0.1:9200', '').run()
-
+            if self.falcon_conf['test_run']:
+                print json.dumps(falcon_metrics)
+            else:
+                req = requests.post(self.falcon_conf['push_url'], data=json.dumps(falcon_metrics))
+                print datetime.now(), "INFO: [%s]" % self.es_conf['endpoint'], "[%s]" % self.falcon_conf['push_url'], req.text
+        except Exception as e:
+            if self.falcon_conf['test_run']:
+                raise
+            else:
+                print datetime.now(), "ERROR: [%s]" % self.es_conf['endpoint'], e
